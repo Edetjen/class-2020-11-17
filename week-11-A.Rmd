@@ -11,6 +11,7 @@ library(gt)
 library(rstanarm)
 library(tidyverse)
 library(tidymodels)
+library(skimr)
 
 # We will be using the `shaming` tibble from PPBDS.data. Check out ?shaming for
 # details. On Day 1, we will explore the data and review the basics of Bayesian
@@ -22,23 +23,79 @@ library(tidymodels)
 # sample 10,000 rows and work with that.
 
 set.seed(1005)
+
 week_11 <- shaming %>% 
   sample_n(10000)
+  
+week_11_clean <- week_11 %>%
+  mutate(age =  2006 - birth_year) %>%
+  mutate(treatment = fct_relevel(treatment, "Control")) %>%
+  mutate(solo = ifelse(hh_size == 1, TRUE, FALSE)) %>%
+  select(-general_04, -no_of_names, -birth_year, -hh_size)
+
 ```
 
 ## Scene 1
 
 **Prompt:** Let's explore the data. You can never look at your data too much!
 
-1) How many voters got which treatments and how many voted in the 2006 primary? 
+1) How many voters got which treatments and how many voted in the 2006 primary?
+
+
+```{r}
+
+week_11 %>%
+filter(treatment == "Neighbors")
+
+# 5517 voters got Control, 1097 got Civic Duty, 1160 got Self, 
+# 1117 got Hawthorne, and 1109 got Neighbors. 3,118 voters voted in the 2006 
+# primary.
+
+week_11 %>%
+  filter(primary_06 == 1)
+
+```
+
 
 2) Explore `birth_year`. Does it make sense? If we got handed a new data set for today, would `birth_year` mean the same thing? Might we want to transform it into something different so that our model would "work" with today's data?
 
+```{r}
+
+# Perhaps the birth_year variable could be better suited in terms of age, 
+# may make easier for interpreting and working with numerically in a model.
+
+skim(week_11)
+
+```
+
 3) There are a bunch of voting records. What do they mean? Are they all recorded in the same way? How are they connected to each other? Do we want to use them all?
+
+```{r}
+
+# The voting records indicate whether or not an individual voted in a primary
+# or general election.
+
+# General and primary results may be too different for a direct comparison,
+# but general could potentially be compared better across each other. Would be
+# worth seeing what that difference may be, or use primary data to predict
+# general results. Maybe we could break down the data into demographics like sex to decipher
+# trends in voting.
+
+
+```
+
 
 4) Explore the `no_of_names` variable? How is it distributed? What does it mean? Can we use it in our modeling?
 
 5) Check out `hh_size`. What does it mean? Is the distribution sensible? Might it be a good idea to create a new variable which is more likely to capture an effect of interest? For example, I bet that that there is a big difference between living by yourself and living with other people. I bet that there is much less difference between living with 3 versus 4 people.
+
+```{r}
+
+# Represents the respondent household size in integer format. 
+
+
+```
+
 
 6) Are the factor levels for treatment convenient? Try a simple regression and see! How can we change them?
 
@@ -54,9 +111,37 @@ Perform other exploratory data analysis.  What other variables are connected to 
 
 * Let's be disciplined. Split up the data and only use the training data for the rest of today. 
 
+
+```{r}
+
+week_11_split <- initial_split(week_11_clean, prob = 0.80)
+week_11_train <- training(week_11_split)
+week_11_test <- testing(week_11_split)
+
+```
+
 * Use stan_glm() to estimate a model of `primary_06` as a function of `treatment`. Write a sentence or two interpreting the important parameters. (Hint: Try it both with and without an intercept.)
 
+```{r}
+
+model <- stan_glm(data = week_11_train,
+                  formula = primary_06 ~ treatment - 1,
+                  family = gaussian(),
+                  refresh = 0)
+
+print(model, digits = 4)
+
+```
+
 * Use the value of MAD_SD to discuss the magnitude/importance of various coefficients. Refer to this image, courtesy of Tyler.
+
+```{r}
+
+tCD: 
+
+
+```
+
 
 ```{r, echo=FALSE}
 knitr::include_graphics("simko_importance.png")
